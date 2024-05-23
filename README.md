@@ -6,13 +6,13 @@ for a NIRS model for intact mango fruit dry matter content".
 
 ## Downloads
 
-* [2021.9.14-v1](https://github.com/spectral-datasets/animal-feed/releases/tag/v2021.9.14-v1)
+* [2021.9.14-v1](https://github.com/spectral-datasets/mango-dmc/releases/tag/v2021.9.14-v1)
 
-  * [csv.zip](https://github.com/spectral-datasets/animal-feed/releases/download/v2021.9.14-v1/csv.zip)
+  * [csv.zip](https://github.com/spectral-datasets/mango-dmc/releases/download/v2021.9.14-v1/csv.zip)
  
 * [raw-v1](https://github.com/spectral-datasets/mango-dmc/releases/tag/raw-v1)
 
-  * [46htwnp833-1.zip](https://github.com/spectral-datasets/animal-feed/releases/download/raw-v1/46htwnp833-1.zip) 
+  * [46htwnp833-1.zip](https://github.com/spectral-datasets/mango-dmc/releases/download/raw-v1/46htwnp833-1.zip) 
 
 
 ## Citation

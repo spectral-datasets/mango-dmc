@@ -1,0 +1,86 @@
+# Project: adams
+# Date: 2021-09-14 20:30:03
+# User: dale
+# Charset: windows-1252
+# Modules: adams-bootstrapp,adams-compress,adams-core,adams-db,adams-event,adams-excel,adams-heatmap,adams-imaging,adams-imaging-boofcv,adams-json,adams-math,adams-matlab,adams-meta,adams-ml,adams-net,adams-odf,adams-pdf,adams-r,adams-rabbitmq,adams-rabbitmq-rats,adams-rats-core,adams-rats-net,adams-rats-rest,adams-rats-webservice,adams-rest,adams-security,adams-spectral-2dim-core,adams-spectral-2dim-handheld,adams-spectral-2dim-r,adams-spectral-2dim-rats,adams-spectral-2dim-webservice,adams-spectral-3way-core,adams-spectral-app,adams-spreadsheet,adams-terminal,adams-visualstats,adams-webservice,adams-webservice-core,adams-weka-lts,adams-xml,adams-yaml
+#
+adams.flow.control.Flow -flow-execution-listener adams.flow.execution.NullListener -flow-restart-manager adams.flow.control.flowrestart.NullManager
+ adams.flow.standalone.CallableActors
+  adams.flow.sink.Display -display-type adams.flow.core.displaytype.Default -writer adams.data.io.output.NullWriter
+ adams.flow.source.EnterManyValues -name "EnterManyValues (2)" -value "adams.flow.source.valuedefinition.DefaultValueDefinition -name filename -display \"Training data arff\" -type FILE_ABSOLUTE -default-value @{flow_dir} -use-forward-slashes true" -value "adams.flow.source.valuedefinition.DefaultValueDefinition -name test_filename -display \"Test arff file\" -type FILE_ABSOLUTE -default-value @{flow_dir} -use-forward-slashes true" -value "adams.flow.source.valuedefinition.DefaultValueDefinition -name output_folder -display \"Output Folder\" -type DIRECTORY_ABSOLUTE -default-value @{flow_dir} -use-forward-slashes true"
+ adams.flow.source.EnterManyValues -skip true -value "adams.flow.source.valuedefinition.DefaultValueDefinition -name filename -display \"File to generate folds for\" -type FILE_ABSOLUTE -default-value @{flow_dir} -use-forward-slashes true" -value "adams.flow.source.valuedefinition.DefaultValueDefinition -name output_folder -display \"Output Folder\" -type DIRECTORY_ABSOLUTE -default-value @{flow_dir} -use-forward-slashes true" -value "adams.flow.source.valuedefinition.DefaultValueDefinition -name folds -display \"Number of folds\" -type INTEGER -default-value 10 -use-forward-slashes true" -value "adams.flow.source.valuedefinition.DefaultValueDefinition -name seed -display \"Random Seed\" -type INTEGER -default-value 42 -use-forward-slashes true"
+ adams.flow.control.Tee
+  adams.flow.transformer.SpreadSheetVariableRowIterator
+ adams.flow.control.Trigger -name "json file"
+  adams.flow.source.Variable -var-name output_folder -conversion adams.data.conversion.StringToString
+  adams.flow.control.Tee -name "combined arff file"
+   adams.flow.transformer.AppendName -suffix test_train.arff.gz -use-forward-slashes true
+   adams.flow.transformer.SetVariable -var-name combined_arff_filename
+  adams.flow.control.Tee -name "json file"
+   adams.flow.transformer.AppendName -suffix train_test_only.json -use-forward-slashes true
+   adams.flow.transformer.SetVariable -var-name output_filename
+ adams.flow.control.Tee -name "append Train and Test"
+  adams.flow.control.Trigger -name Train
+   adams.flow.source.Variable -var-name filename -conversion adams.data.conversion.StringToString
+   adams.flow.transformer.WekaFileReader -loader weka.core.converters.SimpleArffLoader
+   adams.flow.transformer.SetStorageValue -storage-name Trainset
+  adams.flow.control.Trigger -name Test
+   adams.flow.source.Variable -var-name test_filename -conversion adams.data.conversion.StringToString
+   adams.flow.transformer.WekaFileReader -loader weka.core.converters.SimpleArffLoader
+   adams.flow.transformer.SetStorageValue -storage-name Testset
+   adams.flow.transformer.WekaInstancesInfo -type NUM_INSTANCES
+   adams.flow.transformer.SetVariable -var-name test_size
+   adams.flow.transformer.Convert -conversion adams.data.conversion.IntToString
+   adams.flow.transformer.StringReplace -find ^ -replace first-
+   adams.flow.transformer.SetVariable -name "SetVariable (2)" -var-name range
+  adams.flow.control.Trigger -name "Append - Test first"
+   adams.flow.source.StorageValuesArray -storage-name Testset -storage-name Trainset -conversion adams.data.conversion.UnknownToUnknown
+   adams.flow.transformer.WekaInstancesAppend
+   adams.flow.transformer.WekaClassSelector
+   adams.flow.control.Tee -name save
+    adams.flow.sink.WekaFileWriter -output @{combined_arff_filename} -saver "weka.core.converters.SimpleArffSaver -decimal 6"
+   adams.flow.transformer.WekaFilter -filter "weka.filters.unsupervised.attribute.AddID -C first -N __ID__"
+   adams.flow.control.Tee -name "split - Train"
+    adams.flow.transformer.WekaFilter -property instancesIndices -variable range -filter "weka.filters.unsupervised.instance.RemoveRange -R first-last"
+    adams.flow.transformer.SetStorageValue -storage-name FinalTrain
+    adams.flow.transformer.WekaExtractArray
+    adams.flow.control.ArrayProcess
+     adams.flow.transformer.Convert -conversion adams.data.conversion.DoubleToInt
+     adams.flow.transformer.Convert -name "Convert (2)" -conversion adams.data.conversion.IntToString
+    adams.flow.transformer.StringJoin -glue ,
+    adams.flow.transformer.SetVariable -var-name final_train
+   adams.flow.control.Tee -name "split - Test"
+    adams.flow.transformer.WekaFilter -property instancesIndices -variable range -filter "weka.filters.unsupervised.instance.RemoveRange -V -R first-last"
+    adams.flow.transformer.WekaExtractArray
+    adams.flow.control.ArrayProcess
+     adams.flow.transformer.Convert -conversion adams.data.conversion.DoubleToInt
+     adams.flow.transformer.Convert -name "Convert (2)" -conversion adams.data.conversion.IntToString
+    adams.flow.transformer.StringJoin -glue ,
+    adams.flow.transformer.SetVariable -var-name final_test
+ adams.flow.control.Trigger -name process
+  adams.flow.source.StorageValue -storage-name FinalTrain -conversion adams.data.conversion.UnknownToUnknown
+  adams.flow.control.Trigger -name Header
+   adams.flow.source.CombineVariables -expression "{\\n  \\\"folds\\\":1,\\n  \\\"filename\\\":\\\"@{combined_arff_filename}\\\",\\n  \\\"finaltest\\\":[@{final_test}],\\n  \\\"finaltrain\\\":[@{final_train}],\\n  \\\"fold\\\": {" -conversion adams.data.conversion.StringToString
+   adams.flow.sink.CallableSink -skip true -callable Display
+   adams.flow.sink.DumpFile -skip true -output @{output_filename}
+   adams.flow.transformer.SetVariable -var-name output_string
+  adams.flow.control.Trigger -name "output fold"
+   adams.flow.source.CombineVariables -expression "    \\\"0\\\":{\\n      \\\"Train\\\":[@{final_train}],\\n      \\\"Test\\\":[@{final_test}]\\n      }\\n    }\\n}" -conversion adams.data.conversion.StringToString
+   adams.flow.sink.CallableSink -skip true -callable Display
+   adams.flow.sink.DumpFile -skip true -output @{output_filename} -append true
+   adams.flow.transformer.StringInsert -position first -value @{output_string}
+   adams.flow.transformer.SetVariable -var-name output_string
+  adams.flow.control.Trigger -name "Make hash from string" -skip true
+   adams.flow.source.Variable -var-name output_string -conversion adams.data.conversion.StringToString
+   adams.flow.transformer.MessageDigest
+   adams.flow.transformer.SetVariable -var-name hash
+  adams.flow.control.Trigger -name "json file" -skip true
+   adams.flow.source.Variable -var-name output_folder -conversion adams.data.conversion.StringToString
+   adams.flow.transformer.AppendName -name "AppendName (3)" -suffix @{folds} -use-forward-slashes true
+   adams.flow.transformer.AppendName -name "AppendName (2)" -suffix @{hash} -use-forward-slashes true
+   adams.flow.transformer.MakeDir
+   adams.flow.transformer.AppendName -suffix cv.json -use-forward-slashes true
+   adams.flow.transformer.SetVariable -var-name output_filename
+  adams.flow.control.Trigger -name "save to file"
+   adams.flow.source.Variable -var-name output_string -conversion adams.data.conversion.StringToString
+   adams.flow.sink.DumpFile -output @{output_filename} -append true

@@ -1,0 +1,11 @@
+*~
+*.bak
+*.swp
+*.mdb
+*.db
+*.db-journal
+tmp/
+.idea/
+*.iml
+*.props
+output/
